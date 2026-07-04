@@ -34,19 +34,14 @@ pipeline {
         stage('Push to Google Artifact Registry') {
             steps {
                 echo "3. Pushing artifact to Google Cloud..."
-                // In the next step, we will configure Jenkins to use a GCP Service Account credential
-                withCredentials([file(credentialsId: 'gcp-jenkins-sa-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                    sh '''
-                        # Activate the service account
-                        gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
-                        
-                        # Configure Docker to authenticate with GAR
-                        gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-                        
-                        # Push the image
-                        docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
-                    '''
-                }
+                // Relying on Application Default Credentials attached to the GCE VM
+                sh '''
+                    # Configure Docker to authenticate with GAR using the VM's identity
+                    gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+                    
+                    # Push the image
+                    docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
+                '''
             }
         }
         
