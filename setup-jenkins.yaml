@@ -1,0 +1,88 @@
+---
+- name: Provision Enterprise Jenkins Master
+  hosts: jenkins_master
+  become: yes # This tells Ansible to run commands as 'sudo'
+
+  tasks:
+    - name: Update apt repository cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required system dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - openjdk-21-jdk # Jenkins requires Java
+        state: present
+
+    # --- DOCKER INSTALLATION ---
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker CE
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Ensure Docker service is running and enabled
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # --- JENKINS INSTALLATION (OFFICIAL DOCS METHOD) ---
+    - name: Ensure keyrings directory exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Official Jenkins 2026 GPG key
+      get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+        dest: /etc/apt/keyrings/jenkins-keyring.asc
+        mode: '0644'
+        force: yes
+
+    - name: Add Jenkins Repository explicitly
+      copy:
+        dest: /etc/apt/sources.list.d/jenkins.list
+        content: "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/\n"
+        mode: '0644'
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+        update_cache: yes
+
+    - name: Ensure Jenkins service is running and enabled
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    # --- SECURITY & PERMISSIONS ---
+    - name: Add 'jenkins' user to the 'docker' group
+      user:
+        name: jenkins
+        groups: docker
+        append: yes
+      notify: Restart Jenkins
+
+  handlers:
+    - name: Restart Jenkins
+      systemd:
+        name: jenkins
+        state: restarted
