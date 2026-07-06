@@ -31,24 +31,22 @@ pipeline {
             }
         }
 
-      stage('Push to Google Artifact Registry') {
+     stage('Push to Google Artifact Registry') {
             steps {
                 echo "3. Pushing artifact to Google Cloud..."
                 sh '''
-                    # Force gcloud to use a temporary, disposable directory to bypass all Linux permission errors
-                    export CLOUDSDK_CONFIG=/tmp/gcloud-jenkins-config
+                    # Use Python to safely query the Google Hypervisor and extract the token
+                    # This bypasses all gcloud bugs and Jenkins pipe/quote mangling!
+                    TOKEN=$(python3 -c 'import urllib.request, json; req = urllib.request.Request("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", headers={"Metadata-Flavor": "Google"}); print(json.loads(urllib.request.urlopen(req).read().decode())["access_token"])')
                     
-                    # Ask gcloud to handle the complex Metadata authentication for us
-                    TOKEN=$(gcloud auth print-access-token)
-                    
-                    # Check if it worked
+                    # Safety check
                     if [ -z "$TOKEN" ]; then
                         echo "ERROR: Token generation failed."
                         exit 1
                     fi
                     
-                    # Log into Artifact Registry and push
-                    echo $TOKEN | docker login -u oauth2accesstoken --password-stdin ${REGION}-docker.pkg.dev
+                    # Log in and push
+                    echo "$TOKEN" | docker login -u oauth2accesstoken --password-stdin ${REGION}-docker.pkg.dev
                     docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
                 '''
             }
