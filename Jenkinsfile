@@ -47,6 +47,8 @@ pipeline {
                     
                     # Log in and push
                     echo "$TOKEN" | docker login -u oauth2accesstoken --password-stdin ${REGION}-docker.pkg.dev
+                    # Explicitly tag the image
+                    docker tag ${GAR_IMAGE_PATH}:${IMAGE_TAG} ${GAR_IMAGE_PATH}:${IMAGE_TAG}
                     docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
                 '''
             }
