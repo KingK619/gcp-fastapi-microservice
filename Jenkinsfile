@@ -35,19 +35,20 @@ pipeline {
             steps {
                 echo "3. Pushing artifact to Google Cloud..."
                 sh '''
-                    # Fetch the token using 'cut' to completely bypass Jenkins regex parsing bugs
-                    TOKEN=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" -H "Metadata-Flavor: Google" | cut -d'"' -f4)
+                    # Force gcloud to use a temporary, disposable directory to bypass all Linux permission errors
+                    export CLOUDSDK_CONFIG=/tmp/gcloud-jenkins-config
                     
-                    # Safety check
+                    # Ask gcloud to handle the complex Metadata authentication for us
+                    TOKEN=$(gcloud auth print-access-token)
+                    
+                    # Check if it worked
                     if [ -z "$TOKEN" ]; then
-                        echo "ERROR: Token is empty! Metadata server failed."
+                        echo "ERROR: Token generation failed."
                         exit 1
                     fi
                     
-                    # Log into Artifact Registry (no https:// prefix needed)
-                    docker login -u oauth2accesstoken -p "$TOKEN" ${REGION}-docker.pkg.dev
-                    
-                    # Push the image
+                    # Log into Artifact Registry and push
+                    echo $TOKEN | docker login -u oauth2accesstoken --password-stdin ${REGION}-docker.pkg.dev
                     docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
                 '''
             }
