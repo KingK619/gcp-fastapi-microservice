@@ -34,12 +34,14 @@ pipeline {
         stage('Push to Google Artifact Registry') {
             steps {
                 echo "3. Pushing artifact to Google Cloud..."
-                // Relying on Application Default Credentials attached to the GCE VM
                 sh '''
-                    # Configure Docker to authenticate with GAR using the VM's identity
-                    gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+                    # 1. Create the missing directory to silence the gcloud warning
+                    mkdir -p ~/.config/gcloud
                     
-                    # Push the image
+                    # 2. Ask the Spot VM for a temporary OAuth token and log directly into Docker
+                    gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin ${REGION}-docker.pkg.dev
+                    
+                    # 3. Push the image
                     docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
                 '''
             }
