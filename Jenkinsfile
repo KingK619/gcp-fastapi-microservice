@@ -35,17 +35,23 @@ pipeline {
             steps {
                 echo "3. Pushing artifact to Google Cloud..."
                 sh '''
-                    # Fetch the raw OAuth token directly from the VM Metadata Server
-                    TOKEN=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" -H "Metadata-Flavor: Google" | sed -n 's/.*"access_token": *"\\([^"]*\\)".*/\\1/p')
+                    # Fetch the token using 'cut' to completely bypass Jenkins regex parsing bugs
+                    TOKEN=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" -H "Metadata-Flavor: Google" | cut -d'"' -f4)
                     
-                    # Log into Artifact Registry using the token variable directly
-                    docker login -u oauth2accesstoken -p "$TOKEN" https://${REGION}-docker.pkg.dev
+                    # Safety check
+                    if [ -z "$TOKEN" ]; then
+                        echo "ERROR: Token is empty! Metadata server failed."
+                        exit 1
+                    fi
+                    
+                    # Log into Artifact Registry (no https:// prefix needed)
+                    docker login -u oauth2accesstoken -p "$TOKEN" ${REGION}-docker.pkg.dev
                     
                     # Push the image
                     docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
                 '''
             }
-        }
+        }s
         
         stage('Deploy Notification') {
             steps {
