@@ -31,7 +31,7 @@ pipeline {
             }
         }
 
-        stage('Push to Google Artifact Registry') {
+      stage('Push to Google Artifact Registry') {
             steps {
                 echo "3. Pushing artifact to Google Cloud..."
                 sh '''
@@ -51,7 +51,7 @@ pipeline {
                     docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
                 '''
             }
-        }s
+        }
         
         stage('Deploy Notification') {
             steps {
