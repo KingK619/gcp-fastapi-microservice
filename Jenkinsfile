@@ -35,13 +35,13 @@ pipeline {
             steps {
                 echo "3. Pushing artifact to Google Cloud..."
                 sh '''
-                    # 1. Fetch the raw OAuth token directly from the VM Metadata Server (bypassing gcloud completely)
+                    # Fetch the raw OAuth token directly from the VM Metadata Server
                     TOKEN=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" -H "Metadata-Flavor: Google" | sed -n 's/.*"access_token": *"\\([^"]*\\)".*/\\1/p')
                     
-                    # 2. Log into Artifact Registry using the raw token
-                    echo $TOKEN | docker login -u oauth2accesstoken --password-stdin ${REGION}-docker.pkg.dev
+                    # Log into Artifact Registry using the token variable directly
+                    docker login -u oauth2accesstoken -p "$TOKEN" https://${REGION}-docker.pkg.dev
                     
-                    # 3. Push the image
+                    # Push the image
                     docker push ${GAR_IMAGE_PATH}:${IMAGE_TAG}
                 '''
             }
